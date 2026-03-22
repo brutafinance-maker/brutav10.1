@@ -1,0 +1,290 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: usuarios
+    // Document ID: {userId}
+    // Fields:
+    //   - uid: string (required, immutable)
+    //   - nome: string (required)
+    //   - email: string (required, email format)
+    //   - telefone: string (optional)
+    //   - fraseSeguranca: string (required, lowercase)
+    //   - cargo: string (required)
+    //   - diretorFinanceiro: boolean (required)
+    //   - dataCriacao: string (required, ISO 8601)
+    //   - setupCompleto: boolean (required)
+    //
+    // Collection: movimentacoes
+    // Document ID: {transactionId}
+    // Fields:
+    //   - descricao: string (required, max 100 chars)
+    //   - valor: number (required, positive)
+    //   - tipo: string (required, enum: ['entrada', 'saida'])
+    //   - categoriaId: string (required)
+    //   - eventoId: string (optional)
+    //   - produtoId: string (optional)
+    //   - patrocinioId: string (optional)
+    //   - data: string (required, ISO 8601)
+    //   - usuarioId: string (required, immutable)
+    //   - usuarioNome: string (required)
+    //
+    // Collection: categorias
+    // Document ID: {categoryId}
+    // Fields:
+    //   - nome: string (required)
+    //   - tipo: string (required, enum: ['entrada', 'saida'])
+    //   - descricao: string (optional)
+    //   - dataCriacao: string (required)
+    //
+    // Collection: eventos
+    // Document ID: {eventId}
+    // Fields:
+    //   - nome: string (required)
+    //   - data: string (required)
+    //   - local: string (optional)
+    //   - custoEstimado: number (optional)
+    //   - receitaEstimada: number (optional)
+    //   - status: string (required)
+    //
+    // Collection: produtos
+    // Document ID: {productId}
+    // Fields:
+    //   - nome: string (required)
+    //   - custoProducao: number (required)
+    //   - precoVenda: number (required)
+    //   - quantidadeProduzida: number (required)
+    //   - vendido: number (required)
+    //
+    // Collection: patrocinios
+    // Document ID: {sponsorshipId}
+    // Fields:
+    //   - empresa: string (required)
+    //   - valor: number (required)
+    //   - eventoId: string (optional)
+    //   - status: string (required)
+    //   - data: string (required)
+    //
+    // Collection: configuracoes
+    // Document ID: geral
+    // Fields:
+    //   - saldoInicial: number (required)
+    //   - configuradoPor: string (required)
+    //   - dataConfiguracao: string (required)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && (
+        (exists(/databases/$(database)/documents/usuarios/$(request.auth.uid)) && 
+         get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.diretorFinanceiro == true) ||
+        (request.auth.token.email == "matheusenge2@gmail.com" && request.auth.token.email_verified == true)
+      );
+    }
+
+    function isOtherDirectorate() {
+      return isAuthenticated() && (
+        exists(/databases/$(database)/documents/usuarios/$(request.auth.uid)) && 
+        get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.outrasDiretorias == true
+      );
+    }
+
+    function isDirector() {
+      return isAdmin() || isOtherDirectorate();
+    }
+
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    function isValidDateString(dateStr) {
+      return dateStr is string && dateStr.matches("^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}.*Z?$");
+    }
+
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+
+    function isValidUser(data) {
+      return hasOnlyAllowedFields(['uid', 'nome', 'email', 'telefone', 'fraseSeguranca', 'cargo', 'diretorFinanceiro', 'outrasDiretorias', 'dataCriacao', 'setupCompleto']) &&
+             data.uid == request.auth.uid &&
+             data.nome is string && data.nome.size() > 0 && data.nome.size() < 100 &&
+             isValidEmail(data.email) &&
+             data.fraseSeguranca is string && data.fraseSeguranca.size() > 5 &&
+             data.cargo is string &&
+             data.diretorFinanceiro is bool &&
+             data.outrasDiretorias is bool &&
+             isValidDateString(data.dataCriacao) &&
+             data.setupCompleto is bool;
+    }
+
+    function isValidTransaction(data) {
+      // Allow additional fields that might be present in the new interface
+      return data.descricao is string && data.descricao.size() > 0 && data.descricao.size() <= 100 &&
+             data.valor is number && data.valor >= 0 &&
+             data.tipo in ['entrada', 'saida'] &&
+             data.categoriaId is string &&
+             data.usuarioId == request.auth.uid &&
+             data.usuarioNome is string;
+    }
+
+    function isValidCategory(data) {
+      return hasOnlyAllowedFields(['nome', 'tipo', 'descricao', 'dataCriacao']) &&
+             data.nome is string && data.nome.size() > 0 &&
+             data.tipo in ['entrada', 'saida'] &&
+             isValidDateString(data.dataCriacao);
+    }
+
+    function isValidEvent(data) {
+      return hasOnlyAllowedFields(['nome', 'data', 'local', 'descricao', 'orcamento', 'publicoEstimado', 'status', 'criadoPor', 'usuarioId', 'dataCriacao', 'lotes', 'loteAtualId']) &&
+             data.nome is string && data.nome.size() > 0 &&
+             isValidDateString(data.data) &&
+             data.status in ['planejado', 'em_andamento', 'concluido'] &&
+             data.lotes is list;
+    }
+
+    function isValidPendingSale(data) {
+      return hasOnlyAllowedFields(['participanteNome', 'participanteEmail', 'participanteTelefone', 'eventoId', 'loteId', 'loteNome', 'valorTotal', 'formaPagamento', 'registradoPorId', 'registradoPorNome', 'dataRegistro', 'status', 'confirmadoPor', 'dataConfirmacao', 'rejeitadoPor', 'motivoRejeicao']) &&
+             data.participanteNome is string && data.participanteNome.size() > 0 &&
+             data.eventoId is string &&
+             data.loteId is string &&
+             data.valorTotal is number && data.valorTotal >= 0 &&
+             data.status in ['pendente', 'confirmado', 'rejeitado'] &&
+             isValidDateString(data.dataRegistro);
+    }
+
+    function isValidProduct(data) {
+      return hasOnlyAllowedFields(['nome', 'custoProducao', 'precoVenda', 'quantidadeProduzida', 'vendido']) &&
+             data.nome is string && data.nome.size() > 0 &&
+             data.custoProducao is number &&
+             data.precoVenda is number &&
+             data.quantidadeProduzida is number &&
+             data.vendido is number;
+    }
+
+    function isValidSponsorship(data) {
+      return data.nomePatrocinador is string && data.nomePatrocinador.size() > 0 &&
+             data.valor is number &&
+             data.tipoPatrocinio is string &&
+             data.criadoPorId is string &&
+             data.criadoPorNome is string;
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /usuarios/{userId} {
+      // Users can read their own profile. Admins can read all.
+      allow read: if isOwner(userId) || isAdmin();
+      
+      // Users can create their own profile. 
+      // CRITICAL: Prevent self-escalation to admin unless it's the default admin email.
+      allow create: if isOwner(userId) && isValidUser(request.resource.data) && (
+        (request.resource.data.diretorFinanceiro == false && request.resource.data.outrasDiretorias == false) || 
+        (request.auth.token.email == "matheusenge2@gmail.com" && request.auth.token.email_verified == true)
+      );
+      
+      // Users can update their own profile, but cannot change their role/admin status.
+      allow update: if isOwner(userId) && isValidUser(request.resource.data) && (
+        request.resource.data.diretorFinanceiro == resource.data.diretorFinanceiro &&
+        request.resource.data.outrasDiretorias == resource.data.outrasDiretorias &&
+        request.resource.data.cargo == resource.data.cargo
+      ) || isAdmin();
+    }
+
+    match /movimentacoes/{transactionId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin() && (request.method != 'create' || isValidTransaction(request.resource.data));
+    }
+
+    match /categorias/{categoryId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin() && (request.method != 'create' || isValidCategory(request.resource.data));
+    }
+
+    match /eventos/{eventId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin() && (request.method != 'create' || isValidEvent(request.resource.data));
+
+      match /participantes/{participantId} {
+        allow read: if isAuthenticated();
+        // Directors can register participants
+        allow create: if isDirector();
+        allow update, delete: if isAdmin();
+      }
+    }
+
+    match /{path=**}/participantes/{participantId} {
+      allow read, delete: if isAdmin();
+    }
+
+    match /vendasPendentes/{saleId} {
+      allow read: if isAuthenticated();
+      // Directors can register sales
+      allow create: if isDirector();
+      // Only Finance Directors can approve/reject sales
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /produtos/{productId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin() && (request.method != 'create' || isValidProduct(request.resource.data));
+    }
+
+    match /patrocinios/{sponsorshipId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    match /configuracoesFinanceiras/{configId} {
+      allow read: if isAuthenticated() && isDirector();
+      allow write: if isAdmin();
+    }
+
+    match /auditoria/{auditId} {
+      allow read: if isAdmin();
+      allow create: if isAdmin();
+      allow update, delete: if false;
+    }
+
+    match /configuracoes/geral {
+      // Only admins can read/write settings
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    match /simulacoes/{simulationId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && (request.resource.data.criadoPor == request.auth.uid);
+      allow update: if isAuthenticated() && (resource.data.criadoPor == request.auth.uid || isAdmin());
+      allow delete: if isAuthenticated() && (resource.data.criadoPor == request.auth.uid || isAdmin());
+    }
+
+    // Default deny
+    match /{path=**} {
+      allow read, write: if false;
+    }
+  }
+}

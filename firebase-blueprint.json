@@ -1,0 +1,245 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Perfil do usuário do sistema",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "nome": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "telefone": { "type": "string" },
+        "fraseSeguranca": { "type": "string" },
+        "cargo": { "type": "string" },
+        "diretorFinanceiro": { "type": "boolean" },
+        "outrasDiretorias": { "type": "boolean" },
+        "dataCriacao": { "type": "string", "format": "date-time" },
+        "setupCompleto": { "type": "boolean" }
+      },
+      "required": ["uid", "nome", "email", "fraseSeguranca", "diretorFinanceiro"]
+    },
+    "Transaction": {
+      "title": "Transaction",
+      "description": "Movimentação financeira",
+      "type": "object",
+      "properties": {
+        "descricao": { "type": "string" },
+        "valor": { "type": "number" },
+        "tipo": { "type": "string", "enum": ["entrada", "saida"] },
+        "categoriaId": { "type": "string" },
+        "eventoId": { "type": "string" },
+        "produtoId": { "type": "string" },
+        "patrocinioId": { "type": "string" },
+        "data": { "type": "string", "format": "date-time" },
+        "usuarioId": { "type": "string" },
+        "usuarioNome": { "type": "string" },
+        "confirmadoPor": { "type": "string" },
+        "dataConfirmacao": { "type": "string", "format": "date-time" }
+      },
+      "required": ["descricao", "valor", "tipo", "categoriaId", "data", "usuarioId"]
+    },
+    "Category": {
+      "title": "Category",
+      "description": "Categoria de movimentação",
+      "type": "object",
+      "properties": {
+        "nome": { "type": "string" },
+        "tipo": { "type": "string", "enum": ["entrada", "saida"] },
+        "descricao": { "type": "string" },
+        "dataCriacao": { "type": "string", "format": "date-time" }
+      },
+      "required": ["nome", "tipo", "dataCriacao"]
+    },
+    "Event": {
+      "title": "Event",
+      "description": "Evento da atlética",
+      "type": "object",
+      "properties": {
+        "nome": { "type": "string" },
+        "data": { "type": "string", "format": "date-time" },
+        "local": { "type": "string" },
+        "descricao": { "type": "string" },
+        "orcamento": { "type": "number" },
+        "publicoEstimado": { "type": "number" },
+        "status": { "type": "string", "enum": ["planejado", "em_andamento", "concluido"] },
+        "criadoPor": { "type": "string" },
+        "usuarioId": { "type": "string" },
+        "dataCriacao": { "type": "string", "format": "date-time" },
+        "lotes": { "type": "array", "items": { "$ref": "EventBatch" } },
+        "loteAtualId": { "type": "string" },
+        "custos": { "type": "array", "items": { "$ref": "EventCost" } },
+        "patrocinios": { "type": "array", "items": { "$ref": "EventSponsorship" } },
+        "reembolsos": { "type": "array", "items": { "$ref": "EventRefund" } }
+      },
+      "required": ["nome", "data", "status"]
+    },
+    "EventCost": {
+      "title": "EventCost",
+      "description": "Custo associado a um evento",
+      "type": "object",
+      "properties": {
+        "descricao": { "type": "string" },
+        "valor": { "type": "number" },
+        "criadoPor": { "type": "string" },
+        "data": { "type": "string", "format": "date-time" }
+      },
+      "required": ["descricao", "valor", "criadoPor", "data"]
+    },
+    "EventSponsorship": {
+      "title": "EventSponsorship",
+      "description": "Patrocínio associado a um evento",
+      "type": "object",
+      "properties": {
+        "nome": { "type": "string" },
+        "valor": { "type": "number" },
+        "criadoPor": { "type": "string" },
+        "data": { "type": "string", "format": "date-time" }
+      },
+      "required": ["nome", "valor", "criadoPor", "data"]
+    },
+    "EventRefund": {
+      "title": "EventRefund",
+      "description": "Reembolso associado a um evento",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "nomeComprador": { "type": "string" },
+        "valor": { "type": "number" },
+        "motivo": { "type": "string" },
+        "vendaId": { "type": "string" },
+        "criadoPor": { "type": "string" },
+        "criadoEm": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "nomeComprador", "valor", "criadoPor", "criadoEm"]
+    },
+    "EventBatch": {
+      "title": "EventBatch",
+      "description": "Lote de ingressos de um evento",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "nome": { "type": "string" },
+        "preco": { "type": "number" },
+        "quantidadeTotal": { "type": "number" },
+        "quantidadeVendida": { "type": "number" },
+        "dataVirada": { "type": "string", "format": "date-time" },
+        "ativo": { "type": "boolean" }
+      },
+      "required": ["id", "nome", "preco", "quantidadeTotal", "ativo"]
+    },
+    "PendingSale": {
+      "title": "PendingSale",
+      "description": "Venda de ingresso pendente de validação",
+      "type": "object",
+      "properties": {
+        "participanteNome": { "type": "string" },
+        "participanteEmail": { "type": "string", "format": "email" },
+        "participanteTelefone": { "type": "string" },
+        "eventoId": { "type": "string" },
+        "loteId": { "type": "string" },
+        "loteNome": { "type": "string" },
+        "valorTotal": { "type": "number" },
+        "formaPagamento": { "type": "string" },
+        "registradoPorId": { "type": "string" },
+        "registradoPorNome": { "type": "string" },
+        "dataRegistro": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["pendente", "confirmado", "rejeitado"] },
+        "confirmadoPor": { "type": "string" },
+        "dataConfirmacao": { "type": "string", "format": "date-time" }
+      },
+      "required": ["participanteNome", "eventoId", "loteId", "valorTotal", "status"]
+    },
+    "Product": {
+      "title": "Product",
+      "description": "Produto da loja",
+      "type": "object",
+      "properties": {
+        "nome": { "type": "string" },
+        "custoProducao": { "type": "number" },
+        "precoVenda": { "type": "number" },
+        "quantidadeProduzida": { "type": "number" },
+        "vendido": { "type": "number" }
+      },
+      "required": ["nome", "custoProducao", "precoVenda", "quantidadeProduzida"]
+    },
+    "Sponsorship": {
+      "title": "Sponsorship",
+      "description": "Patrocínio",
+      "type": "object",
+      "properties": {
+        "empresa": { "type": "string" },
+        "valor": { "type": "number" },
+        "eventoId": { "type": "string" },
+        "status": { "type": "string", "enum": ["pendente", "pago"] },
+        "data": { "type": "string", "format": "date-time" }
+      },
+      "required": ["empresa", "valor", "status", "data"]
+    },
+    "AppSettings": {
+      "title": "AppSettings",
+      "description": "Configurações gerais do sistema",
+      "type": "object",
+      "properties": {
+        "saldoInicial": { "type": "number" },
+        "configuradoPor": { "type": "string" },
+        "dataConfiguracao": { "type": "string", "format": "date-time" }
+      },
+      "required": ["saldoInicial"]
+    },
+    "Simulation": {
+      "title": "Simulation",
+      "description": "Simulação financeira estratégica",
+      "type": "object",
+      "properties": {
+        "nome": { "type": "string" },
+        "tipo": { "type": "string", "enum": ["festa", "esporte", "geral", "estrategico"] },
+        "periodo": { "type": "string", "enum": ["mensal", "trimestral", "semestral", "anual"] },
+        "ano": { "type": "number" },
+        "saldoAtual": { "type": "number" },
+        "valoresMensais": { "type": "array", "items": { "type": "object" } },
+        "resultado": { "type": "object" },
+        "criadoPor": { "type": "string" },
+        "data": { "type": "string", "format": "date-time" }
+      },
+      "required": ["nome", "tipo", "periodo", "saldoAtual", "valoresMensais", "resultado", "criadoPor", "data"]
+    }
+  },
+  "firestore": {
+    "/usuarios/{userId}": {
+      "schema": "UserProfile",
+      "description": "Dados dos usuários"
+    },
+    "/movimentacoes/{transactionId}": {
+      "schema": "Transaction",
+      "description": "Histórico de movimentações"
+    },
+    "/categorias/{categoryId}": {
+      "schema": "Category",
+      "description": "Categorias de movimentação"
+    },
+    "/eventos/{eventId}": {
+      "schema": "Event",
+      "description": "Eventos da atlética"
+    },
+    "/eventos/{eventId}/vendasPendentes/{saleId}": {
+      "schema": "PendingSale",
+      "description": "Vendas pendentes de um evento"
+    },
+    "/produtos/{productId}": {
+      "schema": "Product",
+      "description": "Produtos da loja"
+    },
+    "/patrocinios/{sponsorshipId}": {
+      "schema": "Sponsorship",
+      "description": "Patrocínios"
+    },
+    "/configuracoes/geral": {
+      "schema": "AppSettings",
+      "description": "Configurações globais"
+    },
+    "/simulacoes/{simulationId}": {
+      "schema": "Simulation",
+      "description": "Simulações financeiras salvas"
+    }
+  }
+}

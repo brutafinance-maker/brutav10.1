@@ -1,0 +1,47 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #0E8F63;
+  --color-secondary: #39B98A;
+  --color-highlight: #8EDBC0;
+  --color-background: #E8F6F1;
+  --color-text-main: #2B2B2B;
+  --color-danger: #E45858;
+
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+}
+
+@layer base {
+  body {
+    @apply bg-background text-text-main font-sans;
+  }
+}
+
+.glass-card {
+  @apply bg-white border border-highlight/30 shadow-sm rounded-xl;
+}
+
+.btn-primary {
+  @apply bg-primary hover:bg-secondary text-white px-4 py-2 rounded-lg transition-colors font-medium flex items-center gap-2;
+}
+
+.sidebar-item {
+  @apply flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-white/80 hover:text-white hover:bg-white/10;
+}
+
+.sidebar-item.active {
+  @apply bg-white/20 text-white font-semibold;
+}
+
+.sidebar-logo {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 20px 10px;
+}
+
+.sidebar-logo img {
+  width: 180px;
+  height: auto;
+  object-fit: contain;
+}
